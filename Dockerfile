@@ -42,6 +42,7 @@ WORKDIR /app
 # Copy service files
 COPY whisperx_service.py /app/
 COPY src/ /app/src/
+COPY .env /app/
 
 # Create log directory
 RUN mkdir -p /var/log
