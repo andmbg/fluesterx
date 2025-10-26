@@ -3,10 +3,10 @@ Custom WhisperX service with support for WAV2VEC2_ASR_LARGE_LV60K_960H alignment
 """
 
 import os
-import json
-from flask import Flask, request, jsonify
 import tempfile
 from pathlib import Path
+
+from flask import Flask, request, jsonify
 from dotenv import load_dotenv, find_dotenv
 
 from src.whisperx import WhisperXService
@@ -76,14 +76,14 @@ def transcribe():
 
             return jsonify(result)
 
-        except Exception as e:
+        except Exception:
             # Clean up on error
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise
 
     except Exception as e:
-        logger.error(f"Request processing error: {e}")
+        logger.error(f"Transcription request processing error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -128,10 +128,13 @@ def embeddings():
             return jsonify({"error": "No transcript provided"}), 400
 
         logger.info("Sending transcript to embedder")
+        logger.debug("model_name: %s", model_name)
 
         embedder = EmbeddingService(model=model_name)
         result = embedder.embed_transcript(chunks=chunks)
+        logger.debug("Embedding completed")
 
+        # Thorough cleanup, as we had some OOM issues before:
         del chunks
 
         try:
@@ -147,7 +150,7 @@ def embeddings():
         return jsonify(result)
 
     except Exception as e:
-        logger.error(f"Request processing error: {e}")
+        logger.error(f"Embedding request processing error: {e}")
         return jsonify({"error": str(e)}), 500
 
     finally:
