@@ -1,13 +1,4 @@
-torch
-torchvision
-torchaudio
-# rest
-whisperx
+whisperx==3.7.4
 flask
 gunicorn
-pyannote.audio
 python-dotenv
-pandas
-transformers
-speechbrain
-sentence-transformers

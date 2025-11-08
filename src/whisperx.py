@@ -1,5 +1,6 @@
 import os
 import traceback
+from typing import Literal
 
 import torch
 import whisperx
@@ -8,8 +9,11 @@ from src.logger import logger
 
 
 class WhisperXService:
-    def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+    def __init__(self, device: Literal["cpu", "cuda", "auto"] = "auto"):
+        if device == "auto":
+            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        else:
+            self.device = device
         self.compute_type = "float16" if self.device == "cuda" else "int8"
 
         logger.info(f"Initializing WhisperX service on {self.device}")
@@ -26,7 +30,7 @@ class WhisperXService:
         """Load WhisperX models"""
         try:
             # Load default Whisper model
-            model_name = os.getenv("ASR_MODEL", "distil-large-v3")
+            model_name = os.getenv("ASR_MODEL", "base")
             logger.info(f"Loading Whisper model: {model_name}")
             self.model = whisperx.load_model(
                 model_name, self.device, compute_type=self.compute_type
