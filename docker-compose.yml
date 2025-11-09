@@ -1,7 +1,7 @@
 services:
   fluesterx:
     build: .
-    image: andmbg/fluesterx:latest
+    image: ghcr.io/andmbg/fluesterx:latest
     container_name: fluesterx
     env_file:
       - .env

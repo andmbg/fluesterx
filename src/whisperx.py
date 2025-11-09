@@ -115,8 +115,7 @@ class WhisperXService:
             # Load audio
             audio = whisperx.load_audio(audio_file_path)
 
-            # Get model for this request (allow model switching)
-            model_name = params.get("model", "distil-large-v3")
+            model_name = os.getenv("ASR_MODEL", "base")
             if hasattr(self, "_current_model") and self._current_model != model_name:
                 logger.info(f"Switching model to {model_name}")
                 self.model = whisperx.load_model(

@@ -15,14 +15,12 @@ from src.logger import logger
 # Load environment variables from .env file
 load_dotenv(find_dotenv())
 
-logger.info(f"HF_TOKEN: {os.getenv('HF_TOKEN')}")
-
 app = Flask(__name__)
 
 
 # Global service instance
-logger.info(f"DEVICE: {os.getenv('DEVICE', '(none)')}")
-service = WhisperXService(device=os.getenv("DEVICE", "cpu")) # type: ignore
+logger.info(f"ENV variable DEVICE is '{os.getenv('DEVICE', '(none)')}'.")
+service = WhisperXService(device=os.getenv("DEVICE", "auto")) # type: ignore
 
 
 @app.route("/asr", methods=["POST"])
