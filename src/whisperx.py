@@ -9,19 +9,20 @@ from src.logger import logger
 
 
 class WhisperXService:
-    def __init__(self, device: Literal["cpu", "cuda", "auto"] = "auto"):
+    def __init__(self, device: Literal["cpu", "cuda", "auto"] = "auto", default_language: str = "en"):
         if device == "auto":
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
         else:
             self.device = device
         self.compute_type = "float16" if self.device == "cuda" else "int8"
+        self.default_language = default_language
 
         logger.info(f"Initializing WhisperX service on {self.device}")
+        logger.info(f"Default language: {self.default_language}")
 
         # Load default model
         self.model = None
-        self.align_model = None
-        self.align_metadata = None
+        self.align_model_cache = {}  # Cache alignment models per language
         self.diarize_model = None
 
         self._load_models()
@@ -36,13 +37,8 @@ class WhisperXService:
                 model_name, self.device, compute_type=self.compute_type
             )
 
-            # Load alignment model with better accuracy
-            logger.info("Loading WAV2VEC2_ASR_LARGE_LV60K_960H alignment model")
-            self.align_model, self.align_metadata = whisperx.load_align_model(
-                language_code="en",
-                device=self.device,
-                model_name="WAV2VEC2_ASR_LARGE_LV60K_960H",
-            )
+            # Don't load alignment model here - load it per-language on demand
+            logger.info("Alignment models will be loaded on demand per language")
 
             # Load diarization model with better error handling
             hf_token = os.getenv("HF_TOKEN")
@@ -51,12 +47,10 @@ class WhisperXService:
             if hf_token:
                 logger.info("Attempting to load diarization model...")
                 try:
-                    # Check WhisperX version and available functions
                     logger.info(
                         f"WhisperX available functions: {[attr for attr in dir(whisperx) if 'diar' in attr.lower()]}"
                     )
 
-                    # Try the correct WhisperX diarization API
                     if hasattr(whisperx, "DiarizationPipeline"):
                         logger.info("Using WhisperX DiarizationPipeline")
                         self.diarize_model = whisperx.DiarizationPipeline(
@@ -79,25 +73,8 @@ class WhisperXService:
 
                 except Exception as e:
                     logger.error(f"Failed to load diarization model: {e}")
-                    logger.error(f"Error type: {type(e)}")
                     logger.error(traceback.format_exc())
-
-                    # Try fallback without device specification
-                    try:
-                        logger.info("Trying fallback diarization loading...")
-                        from pyannote.audio import Pipeline
-
-                        self.diarize_model = Pipeline.from_pretrained(
-                            "pyannote/speaker-diarization-3.1", use_auth_token=hf_token
-                        )
-                        if self.device == "cuda":
-                            self.diarize_model = self.diarize_model.to(
-                                torch.device("cuda")
-                            )
-                        logger.info("Fallback diarization model loaded")
-                    except Exception as e2:
-                        logger.error(f"Fallback also failed: {e2}")
-                        self.diarize_model = None
+                    self.diarize_model = None
             else:
                 logger.warning("No HF_TOKEN provided, diarization will be disabled")
                 self.diarize_model = None
@@ -108,6 +85,23 @@ class WhisperXService:
             logger.error(f"Error loading models: {e}")
             logger.error(traceback.format_exc())
             raise
+
+    def _get_alignment_model(self, language_code: str):
+        """Load and cache alignment model for a specific language"""
+        if language_code not in self.align_model_cache:
+            logger.info(f"Loading alignment model for language: {language_code}")
+            try:
+                align_model, align_metadata = whisperx.load_align_model(
+                    language_code=language_code,
+                    device=self.device,
+                )
+                self.align_model_cache[language_code] = (align_model, align_metadata)
+                logger.info(f"Alignment model loaded for {language_code}")
+            except Exception as e:
+                logger.error(f"Failed to load alignment model for {language_code}: {e}")
+                raise
+        
+        return self.align_model_cache[language_code]
 
     def transcribe(self, audio_file_path, params):
         """Perform transcription with alignment and optional diarization"""
@@ -125,16 +119,27 @@ class WhisperXService:
             elif not hasattr(self, "_current_model"):
                 self._current_model = model_name
 
+            # Get language parameter (use default if not specified)
+            language = params.get("language", self.default_language)
+            logger.info(f"Transcribing with language: {language}")
+
             # Transcribe
             logger.info("Starting transcription")
-            result = self.model.transcribe(audio, batch_size=16)
+            result = self.model.transcribe(audio, batch_size=16, language=language)
 
-            # Align with high-quality model
-            logger.info("Starting alignment with WAV2VEC2_ASR_LARGE_LV60K_960H")
+            # Get detected or specified language
+            detected_language = result.get("language", language)
+            logger.info(f"Detected language: {detected_language}")
+
+            # Load appropriate alignment model for the language
+            align_model, align_metadata = self._get_alignment_model(detected_language)
+
+            # Align with language-specific model
+            logger.info(f"Starting alignment for language: {detected_language}")
             result = whisperx.align(
                 result["segments"],
-                self.align_model,
-                self.align_metadata,
+                align_model,
+                align_metadata,
                 audio,
                 self.device,
                 return_char_alignments=False,
@@ -148,7 +153,6 @@ class WhisperXService:
                 max_speakers = int(params.get("max_speakers", 5))
 
                 try:
-                    # Use the diarization model directly (pyannote Pipeline)
                     logger.info("Running diarization with pyannote pipeline")
                     diarize_segments = self.diarize_model(
                         {
@@ -159,14 +163,12 @@ class WhisperXService:
                         max_speakers=max_speakers,
                     )
 
-                    # Convert pyannote output to WhisperX format
                     diarize_df = self._convert_pyannote_to_whisperx(diarize_segments)
                     result = whisperx.assign_word_speakers(diarize_df, result)
 
                 except Exception as e:
                     logger.warning(f"Diarization failed: {e}")
                     logger.warning(traceback.format_exc())
-                    # Continue without diarization
                     result["diarization_error"] = str(e)
 
             elif diarize and not self.diarize_model:
@@ -175,9 +177,9 @@ class WhisperXService:
                 )
 
             # Add metadata
-            result["language"] = result.get("language", "en")
+            result["language"] = detected_language
             result["model"] = model_name
-            result["alignment_model"] = "WAV2VEC2_ASR_LARGE_LV60K_960H"
+            result["alignment_language"] = detected_language
             result["diarization_enabled"] = diarize and self.diarize_model is not None
 
             # Filter out unnecessary information

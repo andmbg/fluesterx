@@ -1,0 +1,20 @@
+services:
+  fluesterx:
+    image: andmbg/fluesterx:cpu
+    container_name: fluesterx
+    env_file:
+      - .env
+    ports:
+      - "19000:19000"
+    restart: unless-stopped
+    volumes:
+      - whisperx-cache:/root/.cache
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:19000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+volumes:
+  whisperx-cache:

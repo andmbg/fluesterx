@@ -93,7 +93,7 @@ def health():
             "device": service.device,
             "models_loaded": {
                 "whisper": service.model is not None,
-                "alignment": service.align_model is not None,
+                "alignment": service.align_model_cache is not None,
                 "diarization": service.diarize_model is not None,
             },
         }
