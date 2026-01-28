@@ -1,15 +1,11 @@
-# A transcription and embedding companion to the Podology app
+# A transcription and embedding companion to the Glasspod app
 
-This is the external API that helps transcribe audio episodes and compute vector embeddings of text chunks for the Podology app as showcased on
-[this site](somethingsomethingdata.eu).
+This is the external API that helps transcribe audio episodes for the Glasspod app as showcased on
+[this site](somethingsomethingdata.eu/glasspod).
 
-It basically just wraps the WhisperX transcription service and adds an endpoint for SentenceEmbeddings. Things that could functionally also reside on the machine running the app, but that you would commonly use before making the app productive and public in order to do all the transcribing and embedding on a GPU-powered machine.
+It basically just wraps and slightly customizes the WhisperX transcription service.
 
-This container image can easily be loaded to a vast.ai server. Experience has been made with using an RTX 4090 GPU, which typically yields 20-23x transcription speed. Given current prices at vast.ai, for instance, $10 buy you around 600-700 hours worth of transcribing, done in 30 hours.
-
-## Important: Model choice
-
-Note the importance of selecting the same embedder model within this API and within your instance of Podology. There, an embedder is instantiated as well, which serves to embed user prompts. You do want both prompt and transcript embeddings to reside in the same vector space.
+This container image can easily be loaded to a vast.ai server. Experience has been made with using an RTX 4090 GPU, which typically yields 15-23x transcription speed. Given current prices at vast.ai, for instance, $10 buy you around 600-700 hours worth of transcribing, done in 30 hours.
 
 ## Mandatory ENV settings
 
@@ -22,11 +18,7 @@ To start a container with this image, it is necessary to set two environment var
 
 ## Locally
 
-To run this API locally, pull the repo and build the image, or pull andmbg/fluesterx from dockerhub.
-
-```bash
-docker build -t andmbg/fluesterx .
-```
+To run this API locally, pull the repo and build the image, or pull the docker image associated with this repo.
 
 Then start a container:
 
@@ -38,4 +30,7 @@ Now set this host (on which this container runs) and port in the docker-compose 
 
 ## On vast.ai
 
-vast.ai is one of several places at which cheap GPU computing capacity can be rented. Upon paying into your account, select an instance, e.g., with a RTX 4090, 4080 or comparable GPU. Since transcription can take some minutes, an On-Demand instance is better (although somewhat more expensive) than an Interruptible instance. Select your image (which must be available, e.g., on dockerhub), set the mandatory environment variables and the open port. Wait till the instance is running, note its IP and port and paste those in the Podology docker-compose configuration.
+vast.ai is one of several places at which cheap GPU computing capacity can be rented. Upon paying into your account, select an instance, e.g., with a RTX 4090, 4080 or comparable GPU. Since transcription can take some minutes, an On-Demand instance is better (although somewhat more expensive) than an Interruptible instance. Select your image (in this case the one in this repo), set the mandatory environment variables and the open port. Wait till the instance is running, copy its IP and port and paste those in the Glasspod docker-compose configuration .env:
+
+- TRANSCRIBER_URL_PORT
+- API_TOKEN
