@@ -5,10 +5,12 @@ from typing import Literal
 import torch
 import whisperx
 from omegaconf import DictConfig, ListConfig
+from omegaconf.base import ContainerMetadata, Metadata
+from omegaconf.nodes import ValueNode
 
 # PyTorch 2.6+ defaults weights_only=True in torch.load for security.
 # Pyannote model checkpoints use omegaconf classes, so we need to allowlist them.
-torch.serialization.add_safe_globals([DictConfig, ListConfig])
+torch.serialization.add_safe_globals([DictConfig, ListConfig, ContainerMetadata, Metadata, ValueNode])
 
 from src.logger import logger
 
