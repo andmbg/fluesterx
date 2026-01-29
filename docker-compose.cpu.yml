@@ -1,6 +1,9 @@
 services:
   fluesterx:
-    image: andmbg/fluesterx:cpu
+    build:
+      context: .
+      dockerfile: Dockerfile.cpu
+    image: fluesterx:cpu-dev
     container_name: fluesterx
     env_file:
       - .env

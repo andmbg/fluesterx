@@ -4,13 +4,16 @@ from typing import Literal
 
 import torch
 import whisperx
-from omegaconf import DictConfig, ListConfig
-from omegaconf.base import ContainerMetadata, Metadata
-from omegaconf.nodes import ValueNode
 
 # PyTorch 2.6+ defaults weights_only=True in torch.load for security.
-# Pyannote model checkpoints use omegaconf classes, so we need to allowlist them.
-torch.serialization.add_safe_globals([DictConfig, ListConfig, ContainerMetadata, Metadata, ValueNode])
+# Pyannote model checkpoints use many custom classes (omegaconf, typing, etc.)
+# that aren't in the safe globals list. Since we trust HuggingFace models,
+# we patch torch.load to default to weights_only=False.
+_original_torch_load = torch.load
+def _patched_torch_load(*args, **kwargs):
+    kwargs["weights_only"] = False  # Force disable, lightning_fabric passes True explicitly
+    return _original_torch_load(*args, **kwargs)
+torch.load = _patched_torch_load
 
 from src.logger import logger
 

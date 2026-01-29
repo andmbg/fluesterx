@@ -15,8 +15,8 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements.txt /app/
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY requirements.cpu.txt /app/
+RUN pip3 install --no-cache-dir -r requirements.cpu.txt
 
 COPY whisperx_service.py /app/
 COPY src/ /app/src/
