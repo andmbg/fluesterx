@@ -76,7 +76,7 @@ class WhisperXService:
                         from pyannote.audio import Pipeline
 
                         self.diarize_model = Pipeline.from_pretrained(
-                            "pyannote/speaker-diarization-3.1", token=hf_token
+                            "pyannote/speaker-diarization-3.1", use_auth_token=hf_token
                         ).to(torch.device(self.device))
 
                     logger.info("Diarization model loaded successfully")

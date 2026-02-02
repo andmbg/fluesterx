@@ -1,7 +1,9 @@
-torch==2.7.1
-torchaudio==2.7.1
+torch==2.8.0
+torchaudio==2.8.0
 
-whisperx==3.5.0
+whisperx==3.7.6
+transformers
+huggingface_hub
 flask
 gunicorn
 python-dotenv
